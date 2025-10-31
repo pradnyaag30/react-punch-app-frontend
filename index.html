@@ -1,0 +1,405 @@
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punch In App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+ 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+ 
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+ 
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+ 
+        .header h1 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+ 
+        .logo {
+            width: 40px;
+            height: 40px;
+            display: inline-block;
+        }
+ 
+        .local-time {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+ 
+        .punch-section {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+ 
+        .time-input {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 300px;
+        }
+ 
+        .punch-btn {
+            padding: 10px 30px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+ 
+        .punch-btn:hover {
+            background-color: #0056b3;
+        }
+ 
+        .punch-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+ 
+        .quote {
+            text-align: center;
+            color: #444;
+            font-size: 15px;
+            font-style: italic;
+            margin-bottom: 30px;
+        }
+ 
+        .recent-punches {
+            margin-top: 30px;
+        }
+ 
+        .recent-punches h2 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+ 
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+ 
+        thead {
+            background-color: #007bff;
+            color: white;
+        }
+ 
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+ 
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+ 
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+ 
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+ 
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+ 
+        .error {
+            text-align: center;
+            padding: 20px;
+            color: #dc3545;
+            background-color: #fee;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+ 
+        .success {
+            text-align: center;
+            padding: 20px;
+            color: #28a745;
+            background-color: #efe;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+ 
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+ 
+            .punch-section {
+                flex-direction: column;
+                align-items: center;
+            }
+ 
+            .time-input {
+                width: 100%;
+            }
+ 
+            table {
+                font-size: 12px;
+            }
+ 
+            th, td {
+                padding: 10px 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <svg class="logo" viewBox="0 0 24 24" fill="#dc3545">
+                    <circle cx="12" cy="12" r="10" stroke="#dc3545" stroke-width="2" fill="none"/>
+                    <path d="M12 6v6l4 2" stroke="#dc3545" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Punch In App
+            </h1>
+            <div class="local-time">
+                <strong>Local Time:</strong> <span id="currentTime">Loading...</span>
+            </div>
+        </div>
+ 
+        <div class="punch-section">
+            <input
+                type="text"
+                id="manualTime"
+                class="time-input"
+                placeholder="Enter time manually (optional)"
+            >
+            <button id="punchBtn" class="punch-btn">Punch In</button>
+        </div>
+ 
+        <div id="message"></div>
+ 
+        <div class="quote">
+            <span id="greetingText">Good Afternoon</span>
+            <span> — "Small steps every day lead to big results."</span>
+        </div>
+ 
+        <div class="recent-punches">
+            <h2>Recent Punches</h2>
+            <div id="tableContainer">
+                <div class="loading">Loading recent punches...</div>
+            </div>
+        </div>
+    </div>
+ 
+    <script>
+        // ✅ Configuration - Local FastAPI backend
+        const API_BASE_URL = "https://punch-backend-1.onrender.com";  // or "http://localhost:8000"
+ 
+        const API_CONFIG = {
+            punchInEndpoint: `${API_BASE_URL}/api/punch`,
+            getPunchesEndpoint: `${API_BASE_URL}/api/punches`
+        };
+ 
+        // ✅ Update current time + greeting dynamically
+        function updateCurrentTime() {
+            const now = new Date();
+            const formatted = now.toLocaleString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(',', '');
+            document.getElementById('currentTime').textContent = formatted;
+ 
+            // Greeting logic
+            const hour = now.getHours();
+            let greeting = "";
+            if (hour < 12) {
+                greeting = "Good Morning ☀️";
+            } else if (hour >= 12 && hour < 17) {
+                greeting = "Good Afternoon 🌞";
+            } else {
+                greeting = "Good Evening 🌙";
+            }
+ 
+            document.getElementById('greetingText').textContent = greeting;
+        }
+ 
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+ 
+        function showMessage(message, type = 'error') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            setTimeout(() => {
+                messageDiv.textContent = '';
+                messageDiv.className = '';
+            }, 5000);
+        }
+ 
+        // ✅ Punch In API
+        async function punchIn() {
+            const manualTime = document.getElementById('manualTime').value;
+            const punchBtn = document.getElementById('punchBtn');
+            punchBtn.disabled = true;
+ 
+            try {
+                const response = await fetch(API_CONFIG.punchInEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        time: manualTime || new Date().toISOString(),
+                        timestamp: new Date().toISOString()
+                    })
+                });
+ 
+                if (!response.ok) {
+                    throw new Error(`Failed to punch in (${response.status})`);
+                }
+ 
+                showMessage('✅ Punch recorded successfully!', 'success');
+                document.getElementById('manualTime').value = '';
+                await loadRecentPunches();
+ 
+            } catch (error) {
+                console.error('Error punching in:', error);
+                showMessage('Error: ' + error.message, 'error');
+            } finally {
+                punchBtn.disabled = false;
+            }
+        }
+ 
+        // ✅ Load Recent Punches API
+        async function loadRecentPunches() {
+            const tableContainer = document.getElementById('tableContainer');
+ 
+            try {
+                const response = await fetch(API_CONFIG.getPunchesEndpoint);
+                if (!response.ok) throw new Error('Failed to load punches');
+ 
+                const data = await response.json();
+                const punches = data.punches || data;
+ 
+                if (!punches.length) {
+                    tableContainer.innerHTML = '<div class="loading">No punches recorded yet.</div>';
+                    return;
+                }
+ 
+                let tableHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Time</th>
+                                <th>Created At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+ 
+                punches.forEach((punch, index) => {
+                    tableHTML += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${formatDateTime(punch.time)}</td>
+                            <td>${formatDateTime(punch.createdAt)}</td>
+                        </tr>
+                    `;
+                });
+ 
+                tableHTML += `</tbody></table>`;
+                tableContainer.innerHTML = tableHTML;
+ 
+            } catch (error) {
+                console.error('Error loading punches:', error);
+                tableContainer.innerHTML = `<div class="error">Error loading punches: ${error.message}</div>`;
+            }
+        }
+ 
+        function formatDateTime(dateString) {
+            if (!dateString) return "";
+ 
+            const parts = dateString.split(/[/ :]/);
+            if (parts.length >= 6) {
+                const [day, month, year, hour, minute, second] = parts.map(Number);
+                const date = new Date(year, month - 1, day, hour, minute, second);
+                return date.toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }).replace(',', '');
+            }
+ 
+            const date = new Date(dateString);
+            if (isNaN(date)) return dateString;
+ 
+            return date.toLocaleString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(',', '');
+        }
+ 
+        document.getElementById('punchBtn').addEventListener('click', punchIn);
+        document.getElementById('manualTime').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') punchIn();
+        });
+ 
+        loadRecentPunches();
+        setInterval(loadRecentPunches, 30000);
+    </script>
+</body>
+</html>
+ 
+ 
